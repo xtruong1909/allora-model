@@ -5,7 +5,7 @@
         "alloraHomeDir": "/home/idekubagus/.allorad",
         "gas": "1000000",
         "gasAdjustment": 1.5,
-        "nodeRpc": "",
+        "nodeRpc": "https://rpc.ankr.com/allora_testnet",
         "maxRetries": 2,
         "delay": 1,
         "submitTx": true
