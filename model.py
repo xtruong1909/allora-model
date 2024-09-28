@@ -13,7 +13,7 @@ from sklearn.metrics import mean_squared_error
 import time
 import logging
 from arch.__future__ import reindexing
-
+import random
 
 def get_coingecko_url(token):
     base_url = "https://api.coingecko.com/api/v3/coins/"
@@ -41,7 +41,7 @@ def download_data():
             try:
                 headers = {
                     "accept": "application/json",
-                    "x-cg-demo-api-key": ""  # replace with your API key
+                    "x-cg-demo-api-key": "CG-8MtvACYdTwpB32DpjhLgeeVb"  # replace with your API key
                 }
                 url = get_coingecko_url(token)
                 response = requests.get(url, headers=headers)
@@ -83,6 +83,25 @@ def resample_data(price_series, timeframe):
     else:
         raise ValueError(f"Unsupported timeframe: {timeframe}")
 
+def apply_random_adjustment(predicted_value):
+    # Lấy thời gian hiện tại theo GMT +7
+    current_time = datetime.now().astimezone()
+    hour = current_time.hour
+    weekday = current_time.weekday()  # Monday is 0, Sunday is 6
+
+    # Kiểm tra khung thời gian
+    if (hour >= 19 or hour < 7):  # Giờ từ 19h hôm trước đến 7h sáng hôm sau
+        if weekday == 5 or weekday == 6:  # Thứ 7 và Chủ Nhật
+            adjustment = random.uniform(-0.0015, 0.0015)  # +/- 0.15%
+        else:  # Thứ 2 đến Thứ 6
+            adjustment = random.uniform(-0.003, 0.003)  # +/- 0.3%
+    else:
+        adjustment = random.uniform(-0.0005, 0.0005)  # +/- 0.05%
+
+    # Điều chỉnh giá trị dự đoán
+    adjusted_value = predicted_value * (1 + adjustment)
+    return adjusted_value
+
 def train_model(token, timeframe):
     os.makedirs(model_file_path, exist_ok=True)
     # Load and preprocess data
@@ -120,6 +139,29 @@ def train_model(token, timeframe):
 
     return combined_model
 
+def predict_price(token, timeframe):
+    # Load mô hình đã được huấn luyện
+    model_file = f"{model_file_path}_{token.lower()}_{timeframe}.pkl"
+    with open(model_file, "rb") as f:
+        combined_model = pickle.load(f)
+
+    arima_results = combined_model['arima']
+    garch_results = combined_model['garch']
+    
+    # Giả sử giá trị dự đoán từ mô hình ARIMA
+    predicted_value = arima_results.forecast(steps=1)[0]
+
+    # Áp dụng điều chỉnh ngẫu nhiên theo thời gian
+    adjusted_value = apply_random_adjustment(predicted_value)
+    
+    return adjusted_value
+
 if __name__ == "__main__":
     download_data()
-    train_model()
+    
+    # Huấn luyện mô hình (nếu cần)
+    train_model('BTC', '1d')
+
+    # Dự đoán giá trị với token và timeframe
+    predicted_price = predict_price('BTC', '1d')
+    print(f"Predicted Price: {predicted_price}")
